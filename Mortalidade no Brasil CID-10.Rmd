@@ -1,0 +1,215 @@
+---
+title: "Mortalidade no Brasil CID-10"
+author: "Izabela Borges"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Carregamento de pacotes
+
+```{r}
+# Instalar pacotes, se necessário
+if (!require("readr")) install.packages("readr")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("ggthemes")) install.packages("ggthemes")
+if (!require("tidyr")) install.packages("tidyr")
+
+
+# Carregar pacotes
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(tidyr)
+```
+
+# Análise de Mortalidade de 2010 a 2020 pela CID-10 em diferentes faixas etárias por capitais brasileiras
+
+Com o objetivo de analisar mortalidade por doenças cardiovasculares, utilizei a base de dados do "Informações de Saúde (TABNET) - DATASUS", onde selecionei a opção "Estatísticas Vitais", seguida por "Mortalidade – dede 1996 pela CID-10" e "Mortalidade - Geral" com os filtros - Linha: Capital, Colula: Faixa Etária, Conteúdo: Óbitos p/ Residência, Períodos Disponíveis de 2010 a 2020.
+
+Nessa base, pude filtrar dados para doenças do aparelho circulatório (CID-10: I00–I99) e em que proporção as doenças cardiovasculares afetam residentes de diferentes faixas etárias das capitais.
+
+# Introdução
+
+##### Neste relatório, apresento uma análise exploratória da mortalidade nas capitais do Brasil, utilizando dados de mortalidade por faixas etárias. O objetivo é visualizar a distribuição por capital e por região, além de identificar padrões nas faixas etárias.
+
+## Carregamento dos Dados
+
+```{r}
+# Ler o arquivo CSV
+dados <- read.csv("C:/Users/bbell/OneDrive/Documentos/MortalidadeBrasil.csv")
+
+# Visualizar as primeiras linhas
+head(dados)
+```
+
+## Limpeza e Preparação dos Dados
+
+```{r}
+# Legenda das colunas: Menor de 1 ano - Inf1; 1 a 4 anos - Inf2; 5 a 9 - Inf3; 6 a 14 - Inf4; 15 a 19 - Jov1;
+# 20 a 29 - Jov2; 30 a 39 - Adu1; 40 a 49 - Adu2; 50 a 59 - Adu3; 60 a 69 - Adu4; 70 a 79 - Adu5; 80+ - Adu6
+
+# Converter colunas de faixas etárias para numéricas
+faixas_etarias <- c("Inf1", "Inf2", "Inf3", "Inf4", "Jov1", "Jov2", "Adu1", "Adu2", "Adu3", "Adu4", "Adu5", "Adu6", "Idade.ignorada", "Total")
+dados[faixas_etarias] <- lapply(dados[faixas_etarias], as.numeric)
+
+# Verificar a estrutura dos dados
+str(dados)
+```
+
+## Distribuição de Mortalidade por Capital
+
+```{r}
+# Calcular a proporção de óbitos por capital
+total_obitos_brasil <- sum(dados$Total, na.rm = TRUE)
+dados <- dados %>%
+  mutate(Proporcao_por_Capital = Total / total_obitos_brasil)
+
+# Visualizar a distribuição de mortalidade por capital
+ggplot(dados, aes(x = reorder(Capital, Proporcao_por_Capital), y = Proporcao_por_Capital)) +
+  geom_bar(stat = "identity", fill = "dodgerblue3", color = "black") +
+  coord_flip() +
+  labs(title = "Distribuição de Mortalidade por Capital", 
+       y = "Proporção de Óbitos", 
+       x = "Capitais") +
+  theme_minimal(base_size = 14) + 
+  theme(axis.text.x = element_text(color = "black", size = 10),
+        axis.text.y = element_text(color = "black", size = 8),
+        plot.title = element_text(hjust = 0.5, size = 16))
+```
+
+##### Este gráfico exibe a proporção de óbitos em relação ao total de mortes no Brasil, distribuída entre as capitais. As capitais estão ordenadas de acordo com a proporção de óbitos, permitindo uma visualização clara de quais capitais têm uma maior contribuição para a mortalidade nacional, tendo como a tríade do Ranking: São Paulo, Rio de Janeiro e Salvador.
+
+## Distribuição de Mortalidade por Região
+
+```{r}
+# Criar um vetor de regiões correspondentes às capitais
+regioes <- c("Norte", "Norte", "Norte", "Norte", "Norte", "Norte", "Norte",  # Norte
+             "Nordeste", "Nordeste", "Nordeste", "Nordeste", "Nordeste", "Nordeste", "Nordeste", "Nordeste", "Nordeste",  # Nordeste
+             "Sudeste", "Sudeste", "Sudeste", "Sudeste",  # Sudeste
+             "Sul", "Sul", "Sul",  # Sul
+             "Centro-Oeste", "Centro-Oeste", "Centro-Oeste", "Centro-Oeste")  # Centro-Oeste
+
+# Adicionar a coluna de região ao dataset
+dados <- dados %>%
+  mutate(Regiao = regioes)
+
+# Calcular o total de óbitos por região
+dados_regiao <- dados %>%
+  group_by(Regiao) %>%
+  summarise(Total_Obitos_Regiao = sum(Total, na.rm = TRUE))
+
+# Calcular a proporção de óbitos por região
+dados_regiao <- dados_regiao %>%
+  mutate(Proporcao_por_Regiao = Total_Obitos_Regiao / sum(Total_Obitos_Regiao))
+
+# Gráfico de pizza da distribuição de mortalidade por região
+ggplot(dados_regiao, aes(x = "", y = Proporcao_por_Regiao, fill = Regiao)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Distribuição de Mortalidade por Região") +
+  scale_fill_brewer(palette = "Set3") + 
+  theme_void() +
+  theme(legend.position = "right", 
+        plot.title = element_text(hjust = 0.5, size = 16))
+```
+
+##### Este gráfico de pizza mostra a proporção total de óbitos por região do Brasil. Cada fatia representa a contribuição de uma região para o total de mortes, revelando quais áreas do Brasil têm maior carga de mortalidade, o que pode ser interessante para o direcionamento de políticas de saúde pública e intervenções regionais, considerando que algumas regiões podem enfrentar desafios específicos em termos de saúde e acesso a serviços médicos.
+
+## Distribuição da Mortalidade por Faixa Etária
+
+```{r}
+# Criar proporções para faixas etárias
+dados %>%
+  mutate(Infantil = Inf1 + Inf2 + Inf3 + Inf4,
+         Juvenil = Jov1 + Jov2,
+         Adulta = Adu1 + Adu2 + Adu3 + Adu4 + Adu5 + Adu6) %>%
+  select(Capital, Infantil, Juvenil, Adulta, Idade.ignorada, Total) %>%
+  mutate(Proporcao_Infantil = Infantil / Total,
+         Proporcao_Juvenil = Juvenil / Total,
+         Proporcao_Adulta = Adulta / Total,
+         Proporcao_Ignorada = Idade.ignorada / Total) -> proporcoes
+```
+
+```{r}
+
+# Calcular a mortalidade Infanto Juvenil
+dados_faixa_etaria <- dados %>%
+  mutate(Infantil = Inf1 + Inf2 + Inf3 + Inf4,
+         Juvenil = Jov1 + Jov2) %>%
+  select(Capital, Infantil, Juvenil)
+
+# Transformar os dados para o formato longo
+dados_long <- dados_faixa_etaria %>%
+  pivot_longer(cols = c(Infantil, Juvenil),
+               names_to = "Faixa_Etaria",
+               values_to = "Total")
+
+# Gráfico de distribuição da mortalidade por faixa etária
+ggplot(dados_long, aes(x = Capital, y = Total, fill = Faixa_Etaria)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(title = "Distribuição da Mortalidade Infanto Juvenil",
+       y = "Total de Óbitos",
+       x = "Capitais") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(color = "black", size = 8),
+        axis.text.y = element_text(color = "black", size = 8),
+        plot.title = element_text(hjust = 0.5, size = 16))
+
+```
+
+##### Neste gráfico, as barras representam a proporção de óbitos em diferentes faixas etárias (infantil, juvenil, adulta e ignorada) para cada capital. Cada faixa etária é comparada em relação ao total de óbitos de sua respectiva capital, permitindo identificar quais grupos etários são mais afetados pela mortalidade em cada capital. Isso pode ser crucial para a formulação de estratégias de prevenção direcionadas e para a alocação de recursos em saúde.
+
+## Proporção de Óbitos Infantis por Capital
+
+```{r}
+ggplot(proporcoes, aes(x = reorder(Capital, Proporcao_Infantil), y = Proporcao_Infantil)) +
+  geom_bar(stat = "identity", fill = "coral2", color = "black", width = 1) +
+  coord_flip() +
+  labs(title = "Proporção de Óbitos Infantis por Capital", 
+       y = "Proporção de Óbitos Infantis", 
+       x = "Capitais") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(color = "black", size = 12),
+        axis.text.y = element_text(color = "black", size = 8),
+        plot.title = element_text(hjust = 0.5, size = 16),
+        plot.margin = margin(t = 10, r = 20, b = 10, l = 10))
+
+```
+
+##### Este gráfico exibe a proporção de óbitos infantis (até 14 anos) para cada capital. As barras são organizadas de forma que as capitais com maiores proporções de óbitos infantis fiquem em destaque. A visualização destaca a magnitude do problema da mortalidade infantil em diferentes capitais, permitindo a identificação de áreas que necessitam de intervenções específicas em saúde infantil. É uma métrica importante para avaliar o desenvolvimento social e a eficácia das políticas de saúde. Aqui, é interessante observar como a proporção de óbitos infantis não segue a distribuição de mortalidade por capital, podendo apontar um problema ainda maior para as localidades no topo desse ranking.
+
+## Proporção de Óbitos Adultos por Capital
+
+```{r}
+ggplot(proporcoes, aes(x = reorder(Capital, Proporcao_Adulta), y = Proporcao_Adulta)) +
+  geom_bar(stat = "identity", fill = "darkgreen", color = "black", width = 1) +
+  coord_flip() +
+  labs(title = "Proporção de Óbitos Adultos por Capital", 
+       y = "Proporção de Óbitos Adultos", 
+       x = "Capitais") +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(color = "black", size = 12),
+        axis.text.y = element_text(color = "black", size = 8),
+        plot.title = element_text(hjust = 0.5, size = 16))
+```
+
+##### Este gráfico apresenta a proporção de óbitos em adultos (acima de 19 anos) para cada capital. Assim como no gráfico anterior, as barras estão ordenadas para facilitar a comparação.
+
+##### A análise da mortalidade adulta fornece informações sobre os fatores de risco e as condições de vida que afetam essa faixa etária. Identificar capitais com altas taxas de mortalidade adulta pode ajudar a direcionar programas de saúde e prevenção voltados a adultos, abordando questões como doenças crônicas e acesso a cuidados médicos.
+
+# Conclusão
+
+##### A análise da mortalidade por doenças cardiovasculares nas capitais brasileiras entre 2010 e 2020 revela insights significativos sobre a saúde pública e a distribuição de óbitos em diferentes faixas etárias. Os dados obtidos mostram que as capitais com maior número total de óbitos não necessariamente apresentam as mesmas proporções de mortalidade infantil e adulta, indicando que diferentes fatores podem influenciar a mortalidade em cada localidade.
+
+##### A visualização da distribuição de óbitos por capital destaca a contribuição desproporcional de algumas regiões, especialmente as mais populosas, como São Paulo, Rio de Janeiro e Salvador, que se destacam no ranking de mortalidade. No entanto, essa análise também evidencia a necessidade de uma abordagem regionalizada nas políticas de saúde, uma vez que áreas com menor volume populacional podem enfrentar altas taxas de mortalidade em faixas etárias específicas, como a infantil.
+
+##### Os gráficos apresentados demonstram claramente que a mortalidade infantil e adulta não segue um padrão uniforme entre as capitais. Enquanto algumas capitais têm altas taxas de mortalidade adulta, outras podem ter problemas significativos de mortalidade infantil, sugerindo que as intervenções de saúde precisam ser personalizadas e adaptadas às realidades locais. A discrepância nas proporções de óbitos entre as faixas etárias enfatiza a importância de priorizar a saúde infantil e a saúde dos adultos, direcionando recursos e estratégias de prevenção de acordo com as necessidades específicas de cada capital.
+
+##### Em suma, esta análise não apenas ilumina os desafios que o Brasil enfrenta em termos de mortalidade por doenças cardiovasculares, mas também fornece uma base sólida para a formulação de políticas públicas e intervenções em saúde que busquem reduzir as taxas de mortalidade e melhorar a qualidade de vida da população. A compreensão desses padrões é crucial para um planejamento eficaz e para a promoção da saúde em todas as idades, destacando a importância de dados precisos e acessíveis na formulação de estratégias de saúde pública.
